@@ -24,6 +24,7 @@
     --text: #F4F2EE;
     --dim: #9A98A0;
     --green: #3ED66E;
+    --insta: #E1306C;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; background: var(--ink); }
@@ -35,7 +36,6 @@
     padding-bottom: 110px;
   }
   button { font-family: inherit; cursor: pointer; }
-  a { -webkit-touch-callout: default; }
 
   /* Header */
   header { padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 10px; display: flex; align-items: center; gap: 12px; }
@@ -57,7 +57,8 @@
   .card .info { flex: 1; min-width: 0; }
   .card .name { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card .meta { font-size: 12px; color: var(--dim); margin-top: 3px; display: flex; gap: 10px; }
-  .card .meta .tut { color: var(--wood); }
+  .card .meta .yt { color: var(--wood); }
+  .card .meta .ig { color: var(--insta); }
 
   .btn {
     border: none; border-radius: 10px; padding: 9px 14px;
@@ -73,6 +74,10 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--orange-dim); color: var(--orange);
     border: 1px solid rgba(255,107,53,.35); text-decoration: none;
+  }
+  .playlink.insta {
+    background: rgba(225,48,108,.14); color: var(--insta);
+    border-color: rgba(225,48,108,.4);
   }
 
   /* Empty state */
@@ -131,6 +136,7 @@
     width: 100%; background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; font-size: 16px; outline: none;
   }
+  .field .hint { font-size: 12px; color: var(--dim); margin-top: 6px; line-height: 1.4; }
   .steppers { display: flex; gap: 10px; }
   .stepper {
     flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
@@ -155,37 +161,59 @@
     position: fixed; inset: 0; background: var(--ink); z-index: 60;
     display: none; flex-direction: column; align-items: center;
     max-width: 480px; margin: 0 auto;
-    padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 30px);
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 26px);
+    overflow-y: auto;
   }
   #timerScreen.open { display: flex; }
-  .timer-top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
-  .timer-name { margin-top: 24px; font-size: 22px; font-weight: 800; text-align: center; padding: 0 10px; }
+  .timer-top { width: 100%; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .timer-name { margin-top: 14px; font-size: 20px; font-weight: 800; text-align: center; padding: 0 10px; }
   .timer-state { font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
-  .ring-wrap { position: relative; margin-top: 28px; }
+
+  /* YouTube embed */
+  #videoWrap {
+    display: none; width: 100%; margin-top: 14px;
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
+    aspect-ratio: 16 / 9; background: #000; flex-shrink: 0;
+  }
+  #videoWrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  /* Instagram button on timer screen */
+  #instaBtn {
+    display: none; margin-top: 14px; text-decoration: none;
+    background: rgba(225,48,108,.14); color: var(--insta);
+    border: 1px solid rgba(225,48,108,.4); border-radius: 12px;
+    padding: 12px 18px; font-weight: 800; font-size: 14px; letter-spacing: .5px;
+    align-items: center; gap: 8px; flex-shrink: 0;
+  }
+
+  .ring-wrap { position: relative; margin-top: 18px; flex-shrink: 0; }
+  .ring-wrap svg { display: block; }
   .ring-center {
     position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4px;
+    align-items: center; justify-content: center; gap: 2px;
   }
+  #ballEmoji { font-size: 28px; }
   #clock {
-    font-size: 58px; font-weight: 900; font-variant-numeric: tabular-nums;
+    font-size: 54px; font-weight: 900; font-variant-numeric: tabular-nums;
     font-family: 'SF Mono', Menlo, monospace;
   }
+  #timerScreen.compact #ballEmoji { font-size: 18px; }
+  #timerScreen.compact #clock { font-size: 36px; }
   #clock.running { text-shadow: 0 0 24px rgba(255,107,53,.5); }
   #clock.done { color: var(--green); text-shadow: 0 0 24px var(--green); }
-  #buzzerLabel { color: var(--green); font-weight: 800; letter-spacing: 3px; font-size: 13px; display: none; }
-  .controls { display: flex; gap: 16px; margin-top: 34px; align-items: center; }
+  #buzzerLabel { color: var(--green); font-weight: 800; letter-spacing: 3px; font-size: 12px; display: none; }
+  .controls { display: flex; gap: 16px; margin: 20px 0 8px; align-items: center; flex-shrink: 0; }
   .ctl {
-    width: 64px; height: 64px; border-radius: 50%;
+    width: 60px; height: 60px; border-radius: 50%;
     border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 22px;
   }
   .ctl.spacer { visibility: hidden; }
   #playPause {
-    width: 92px; height: 92px; border-radius: 50%; border: none;
-    background: var(--orange); color: #111; font-size: 30px; font-weight: 900;
+    width: 86px; height: 86px; border-radius: 50%; border: none;
+    background: var(--orange); color: #111; font-size: 28px; font-weight: 900;
     box-shadow: 0 6px 24px rgba(255,107,53,.45);
   }
   #playPause:disabled { background: var(--panel2); box-shadow: none; }
-  .timer-hint { margin-top: 22px; font-size: 12px; color: var(--dim); }
 </style>
 </head>
 <body>
@@ -238,7 +266,8 @@
     </div>
     <div class="field">
       <label>Tutorial link (optional)</label>
-      <input type="url" id="inUrl" placeholder="youtube.com/watch?v=…" autocapitalize="none" autocomplete="off" />
+      <input type="url" id="inUrl" placeholder="YouTube or Instagram link…" autocapitalize="none" autocomplete="off" />
+      <div class="hint">YouTube links play right on the timer screen. Instagram links open the Instagram app.</div>
     </div>
     <label class="checkrow">
       <input type="checkbox" id="inFav" checked /> Save to Playbook ⭐
@@ -260,15 +289,27 @@
   </div>
   <div class="timer-name" id="timerName"></div>
   <div class="timer-state" id="timerState">Clock stopped</div>
+
+  <!-- YouTube tutorial plays here -->
+  <div id="videoWrap"></div>
+
+  <!-- Instagram tutorial opens the app -->
+  <a id="instaBtn" target="_blank" rel="noopener noreferrer">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/>
+    </svg>
+    Open tutorial in Instagram
+  </a>
+
   <div class="ring-wrap">
-    <svg width="280" height="280" viewBox="0 0 280 280">
+    <svg id="ringSvg" width="260" height="260" viewBox="0 0 280 280">
       <circle cx="140" cy="140" r="120" stroke="rgba(255,255,255,0.10)" stroke-width="14" fill="none"/>
       <circle id="ring" cx="140" cy="140" r="120" fill="none" stroke="#FF6B35" stroke-width="14"
         stroke-linecap="round" transform="rotate(-90 140 140)"
         style="transition: stroke-dashoffset .3s linear"/>
     </svg>
     <div class="ring-center">
-      <div style="font-size:30px">🏀</div>
+      <div id="ballEmoji">🏀</div>
       <div id="clock">0:00</div>
       <div id="buzzerLabel">BUZZER!</div>
     </div>
@@ -278,7 +319,6 @@
     <button id="playPause">▶</button>
     <button class="ctl spacer">↺</button>
   </div>
-  <div class="timer-hint" id="timerHint" style="display:none">Tap the ▶ button top-right to open the tutorial</div>
 </div>
 
 <script>
@@ -318,6 +358,40 @@
     } catch (e) { return ""; }
   };
 
+  // ---------- Link classification ----------
+  // Returns "" or the video id, for YouTube links of any common shape
+  function youtubeId(u) {
+    try {
+      const url = new URL(u);
+      const host = url.hostname.replace(/^www\.|^m\./, "");
+      if (host === "youtu.be") {
+        const id = url.pathname.split("/")[1];
+        return /^[\w-]{6,}$/.test(id || "") ? id : "";
+      }
+      if (host === "youtube.com" || host === "music.youtube.com") {
+        if (url.pathname === "/watch") {
+          const id = url.searchParams.get("v");
+          return /^[\w-]{6,}$/.test(id || "") ? id : "";
+        }
+        const m = url.pathname.match(/^\/(shorts|embed|live)\/([\w-]{6,})/);
+        if (m) return m[2];
+      }
+      return "";
+    } catch (e) { return ""; }
+  }
+  function isInstagram(u) {
+    try {
+      const host = new URL(u).hostname.replace(/^www\./, "");
+      return host === "instagram.com" || host.endsWith(".instagram.com");
+    } catch (e) { return false; }
+  }
+  function linkKind(u) {
+    if (!u) return "none";
+    if (youtubeId(u)) return "youtube";
+    if (isInstagram(u)) return "instagram";
+    return "other";
+  }
+
   // ---------- Toast ----------
   const toastEl = document.getElementById("toast");
   let toastTimer = null;
@@ -335,8 +409,23 @@
   function playLinkHTML(url) {
     const href = safeHref(url);
     if (!href) return "";
+    const kind = linkKind(href);
+    if (kind === "instagram") {
+      return '<a class="playlink insta" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="Open in Instagram">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg></a>';
+    }
     return '<a class="playlink" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="Open tutorial">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></a>';
+  }
+
+  function metaHTML(w) {
+    const kind = linkKind(w.tutorialURL);
+    let tut = "";
+    if (kind === "youtube") tut = '<span class="yt">▶ YouTube tutorial</span>';
+    else if (kind === "instagram") tut = '<span class="ig">◉ Instagram tutorial</span>';
+    else if (kind === "other") tut = '<span class="yt">▶ tutorial linked</span>';
+    return '<div class="meta"><span>⏱ ' + fmt(w.durationSeconds) + '</span>' + tut + '</div>';
   }
 
   function emptyHTML(title, msg) {
@@ -355,9 +444,7 @@
       }
       main.innerHTML = session.map((w) =>
         '<div class="card">' +
-          '<div class="info"><div class="name">' + esc(w.name) + '</div>' +
-          '<div class="meta"><span>⏱ ' + fmt(w.durationSeconds) + '</span>' +
-          (w.tutorialURL ? '<span class="tut">▶ tutorial linked</span>' : '') + '</div></div>' +
+          '<div class="info"><div class="name">' + esc(w.name) + '</div>' + metaHTML(w) + '</div>' +
           playLinkHTML(w.tutorialURL) +
           '<button class="btn primary" data-act="start" data-id="' + w.id + '">Start</button>' +
           '<button class="btn" data-act="star" data-id="' + w.id + '" title="Save to Playbook">⭐</button>' +
@@ -371,9 +458,7 @@
       }
       main.innerHTML = favorites.map((f) =>
         '<div class="card">' +
-          '<div class="info"><div class="name">' + esc(f.name) + '</div>' +
-          '<div class="meta"><span>⏱ ' + fmt(f.durationSeconds) + '</span>' +
-          (f.tutorialURL ? '<span class="tut">▶ tutorial linked</span>' : '') + '</div></div>' +
+          '<div class="info"><div class="name">' + esc(f.name) + '</div>' + metaHTML(f) + '</div>' +
           playLinkHTML(f.tutorialURL) +
           '<button class="btn green" data-act="addfav" data-id="' + f.id + '">+ Add</button>' +
           '<button class="btn dim" data-act="delfav" data-id="' + f.id + '" title="Remove">✕</button>' +
@@ -459,13 +544,65 @@
     tab = "session"; render();
   };
 
+  // ---------- Audio (iOS-friendly buzzer) ----------
+  // iOS only allows sound that was unlocked inside a user gesture, so we prime
+  // the AudioContext when Start is tapped. Setting the audio session type to
+  // "playback" (Safari 17+) lets the buzzer sound even if the phone's
+  // ringer/silent switch is on.
+  let audioCtx = null;
+
+  function unlockAudio() {
+    try {
+      if (navigator.audioSession) {
+        try { navigator.audioSession.type = "playback"; } catch (e) {}
+      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      // Play one silent sample to fully unlock output on iOS
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start(0);
+    } catch (e) {}
+  }
+
+  function buzzer() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      // Three arena-style blasts: BZZT  BZZT  BZZZZZT
+      const blasts = [[0, 0.45], [0.65, 0.45], [1.3, 0.9]];
+      blasts.forEach(function (b) {
+        const start = b[0], dur = b[1];
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "square";
+        osc.frequency.value = 190;
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.6, now + start + 0.02);
+        gain.gain.setValueAtTime(0.6, now + start + dur - 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + start);
+        osc.stop(now + start + dur + 0.05);
+      });
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 600]);
+  }
+
   // ---------- Timer ----------
   const screen = document.getElementById("timerScreen");
   const ring = document.getElementById("ring");
+  const ringSvg = document.getElementById("ringSvg");
   const clock = document.getElementById("clock");
   const playPause = document.getElementById("playPause");
   const buzzerLabel = document.getElementById("buzzerLabel");
   const timerState = document.getElementById("timerState");
+  const videoWrap = document.getElementById("videoWrap");
+  const instaBtn = document.getElementById("instaBtn");
   const C = 2 * Math.PI * 120;
   ring.setAttribute("stroke-dasharray", C);
 
@@ -476,19 +613,6 @@
   }
   function releaseWakeLock() {
     try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {}
-  }
-
-  function buzzer() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      osc.type = "square"; osc.frequency.value = 220;
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 1.1);
-    } catch (e) {}
-    if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
   }
 
   function drawTimer() {
@@ -513,6 +637,7 @@
 
   function startClock() {
     if (remaining <= 0) return;
+    unlockAudio();               // must happen inside this tap for iOS
     running = true;
     endAt = Date.now() + remaining * 1000;
     requestWakeLock();
@@ -528,21 +653,59 @@
     current = w;
     remaining = w.durationSeconds;
     running = false;
+
     document.getElementById("timerName").textContent = w.name;
-    const tut = document.getElementById("timerTut");
-    const hint = document.getElementById("timerHint");
+
     const href = safeHref(w.tutorialURL);
-    if (href) { tut.href = href; tut.style.display = "flex"; hint.style.display = "block"; }
-    else { tut.style.display = "none"; hint.style.display = "none"; }
+    const kind = linkKind(href);
+    const tut = document.getElementById("timerTut");
+
+    // Reset media areas
+    videoWrap.innerHTML = "";
+    videoWrap.style.display = "none";
+    instaBtn.style.display = "none";
+    tut.style.display = "none";
+    screen.classList.remove("compact");
+
+    if (kind === "youtube") {
+      const id = youtubeId(href);
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://www.youtube.com/embed/" + id + "?playsinline=1&rel=0";
+      iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      iframe.setAttribute("allowfullscreen", "");
+      videoWrap.appendChild(iframe);
+      videoWrap.style.display = "block";
+      // Shrink the ring so video + timer + controls fit on one screen
+      ringSvg.setAttribute("width", "190");
+      ringSvg.setAttribute("height", "190");
+      screen.classList.add("compact");
+    } else {
+      ringSvg.setAttribute("width", "260");
+      ringSvg.setAttribute("height", "260");
+      if (kind === "instagram") {
+        instaBtn.href = href;
+        instaBtn.style.display = "flex";
+      } else if (kind === "other") {
+        tut.href = href;
+        tut.style.display = "flex";
+      }
+    }
+
     drawTimer();
     screen.classList.add("open");
   }
 
+  function closeTimer() {
+    stopClock();
+    videoWrap.innerHTML = "";   // removes the iframe, which stops YouTube playback
+    screen.classList.remove("open");
+  }
+
   playPause.onclick = () => { running ? (stopClock(), drawTimer()) : startClock(); };
   document.getElementById("resetBtn").onclick = () => { stopClock(); remaining = current.durationSeconds; drawTimer(); };
-  document.getElementById("timerBack").onclick = () => { stopClock(); screen.classList.remove("open"); };
+  document.getElementById("timerBack").onclick = closeTimer;
 
-  // Re-acquire wake lock if user switches back mid-drill
+  // Re-acquire wake lock and resync the clock if user switches back mid-drill
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && running) {
       requestWakeLock();
