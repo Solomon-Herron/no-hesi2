@@ -239,6 +239,30 @@
     box-shadow: 0 6px 24px rgba(255,107,53,.45);
   }
   #playPause:disabled { background: var(--panel2); box-shadow: none; }
+  .ctl.arrow { font-size: 24px; font-weight: 800; }
+  .ctl.arrow:disabled { opacity: .3; }
+  #runnerInfo {
+    display: none; margin-top: 8px; font-size: 12px; font-weight: 800;
+    letter-spacing: 2px; color: var(--wood); text-transform: uppercase;
+  }
+
+  /* Playlist builder */
+  .pl-list { display: flex; flex-direction: column; gap: 8px; }
+  .pl-row {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 11px 12px; display: flex; align-items: center; gap: 10px; font-size: 14px;
+  }
+  .pl-row .num { color: var(--orange); font-weight: 800; width: 20px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .pl-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .pl-row .dur { color: var(--dim); font-size: 12px; flex-shrink: 0; }
+  .pl-row button {
+    border: none; background: rgba(255,255,255,.06); color: var(--dim);
+    width: 32px; height: 32px; border-radius: 8px; font-size: 15px; flex-shrink: 0;
+  }
+  .pl-row.pick { cursor: pointer; }
+  .pl-row.pick .add-ico { color: var(--green); font-weight: 800; font-size: 18px; flex-shrink: 0; }
+  .pl-note { font-size: 12px; color: var(--dim); line-height: 1.5; margin: 4px 0 0; }
+  .pl-total { font-size: 12px; color: var(--wood); font-weight: 700; margin-top: 8px; text-align: right; }
 </style>
 </head>
 <body>
@@ -264,7 +288,8 @@
 
 <nav>
   <button class="tab active" id="tabSession"><span class="icon">⏱</span>SESSION</button>
-  <button class="fab" id="fab" aria-label="Add drill">+</button>
+  <button class="tab" id="tabPlaylists"><span class="icon">📋</span>PLAYLISTS</button>
+  <button class="fab" id="fab" aria-label="Add">+</button>
   <button class="tab" id="tabPlaybook"><span class="icon">⭐</span>PLAYBOOK</button>
 </nav>
 
@@ -306,6 +331,31 @@
   </div>
 </div>
 
+<!-- Playlist builder sheet -->
+<div class="overlay" id="plOverlay">
+  <div class="sheet">
+    <h2 id="plTitle">NEW PLAYLIST</h2>
+    <div class="field">
+      <label>Playlist name</label>
+      <input type="text" id="plName" placeholder="e.g. Morning Shootaround" />
+    </div>
+    <div class="field">
+      <label>Drills in this playlist (runs top to bottom)</label>
+      <div class="pl-list" id="plSelected"></div>
+      <div class="pl-total" id="plTotal"></div>
+    </div>
+    <div class="field">
+      <label>Tap a Playbook drill to add it</label>
+      <div class="pl-list" id="plSource"></div>
+      <div class="pl-note" id="plSourceNote"></div>
+    </div>
+    <div class="actions">
+      <button class="btn cancel" id="plCancel">Cancel</button>
+      <button class="btn primary ok" id="plSave">Save playlist</button>
+    </div>
+  </div>
+</div>
+
 <!-- Timer screen -->
 <div id="timerScreen">
   <div class="timer-top">
@@ -316,6 +366,7 @@
   </div>
   <div class="timer-name" id="timerName"></div>
   <div class="timer-state" id="timerState">Clock stopped</div>
+  <div id="runnerInfo"></div>
 
   <!-- YouTube tutorial plays here -->
   <div id="videoWrap"></div>
@@ -342,9 +393,11 @@
     </div>
   </div>
   <div class="controls">
+    <button class="ctl arrow" id="prevBtn" style="display:none" title="Last drill">←</button>
     <button class="ctl" id="resetBtn">↺</button>
     <button id="playPause">▶</button>
-    <button class="ctl spacer">↺</button>
+    <button class="ctl arrow" id="nextBtn" style="display:none" title="Next drill">→</button>
+    <button class="ctl spacer" id="ctlSpacer">↺</button>
   </div>
 </div>
 
@@ -354,7 +407,7 @@
 
   // ---------- State & persistence ----------
   const KEY = "hoops-trainer-data";
-  let session = [], favorites = [], tab = "session";
+  let session = [], favorites = [], playlists = [], tab = "session";
 
   function load() {
     try {
@@ -363,11 +416,12 @@
         const d = JSON.parse(raw);
         session = d.session || [];
         favorites = d.favorites || [];
+        playlists = d.playlists || [];
       }
     } catch (e) {}
   }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ session, favorites })); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify({ session, favorites, playlists })); } catch (e) {}
   }
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -474,8 +528,27 @@
 
   function render() {
     document.getElementById("tabSession").classList.toggle("active", tab === "session");
+    document.getElementById("tabPlaylists").classList.toggle("active", tab === "playlists");
     document.getElementById("tabPlaybook").classList.toggle("active", tab === "playbook");
-    subtitle.textContent = tab === "session" ? "Today's session" : "Saved playbook";
+    subtitle.textContent = tab === "session" ? "Today's session" : tab === "playlists" ? "Drill playlists" : "Saved playbook";
+
+    if (tab === "playlists") {
+      if (!playlists.length) {
+        main.innerHTML = emptyHTML("No playlists yet", "Tap the orange + to build one from your Playbook drills. Running a playlist plays each drill's timer back to back.");
+        return;
+      }
+      main.innerHTML = playlists.map((p) => {
+        const total = p.drills.reduce((s, d) => s + d.durationSeconds, 0);
+        return '<div class="card">' +
+          '<div class="info"><div class="name">📋 ' + esc(p.name) + '</div>' +
+          '<div class="meta"><span>' + p.drills.length + ' drill' + (p.drills.length === 1 ? '' : 's') + '</span><span>⏱ ' + fmt(total) + ' total</span></div></div>' +
+          '<button class="btn primary" data-act="runpl" data-id="' + p.id + '">▶ Run</button>' +
+          '<button class="btn" data-act="editpl" data-id="' + p.id + '" title="Edit">✎</button>' +
+          '<button class="btn dim" data-act="delpl" data-id="' + p.id + '" title="Delete">✕</button>' +
+        '</div>';
+      }).join("");
+      return;
+    }
 
     if (tab === "session") {
       if (!session.length) {
@@ -558,14 +631,24 @@
       exportBackup();
     } else if (act === "import") {
       document.getElementById("importFile").click();
+    } else if (act === "runpl") {
+      const p = playlists.find((x) => x.id === id);
+      if (p && p.drills.length) openPlaylist(p);
+    } else if (act === "editpl") {
+      const p = playlists.find((x) => x.id === id);
+      if (p) openPlaylistBuilder(p);
+    } else if (act === "delpl") {
+      playlists = playlists.filter((x) => x.id !== id); save(); render();
     }
   });
+
+  document.getElementById("tabPlaylists").onclick = () => { tab = "playlists"; render(); };
 
   // ---------- Backup: export / import ----------
   function exportBackup() {
     try {
       const stamp = new Date().toISOString().slice(0, 10);
-      const payload = JSON.stringify({ app: "hoops-trainer", exportedAt: new Date().toISOString(), session, favorites }, null, 2);
+      const payload = JSON.stringify({ app: "hoops-trainer", exportedAt: new Date().toISOString(), session, favorites, playlists }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -598,8 +681,25 @@
             added++;
           }
         });
+        let plAdded = 0;
+        (d.playlists || []).forEach(function (p) {
+          if (p && p.name && Array.isArray(p.drills) &&
+              !playlists.some((x) => x.name === p.name)) {
+            playlists.push({
+              id: uid(),
+              name: String(p.name),
+              drills: p.drills
+                .filter((dr) => dr && dr.name && typeof dr.durationSeconds === "number")
+                .map((dr) => ({ name: String(dr.name), durationSeconds: dr.durationSeconds, tutorialURL: String(dr.tutorialURL || "") })),
+            });
+            plAdded++;
+          }
+        });
         save(); render();
-        flash(added ? "Restored " + added + " drill" + (added === 1 ? "" : "s") + " ⭐" : "Nothing new to restore");
+        const parts = [];
+        if (added) parts.push(added + " drill" + (added === 1 ? "" : "s"));
+        if (plAdded) parts.push(plAdded + " playlist" + (plAdded === 1 ? "" : "s"));
+        flash(parts.length ? "Restored " + parts.join(" + ") + " ⭐" : "Nothing new to restore");
       } catch (e) {
         flash("Couldn't read that backup file");
       }
@@ -632,6 +732,7 @@
   inName.addEventListener("input", syncSheet);
 
   document.getElementById("fab").onclick = () => {
+    if (tab === "playlists") { openPlaylistBuilder(null); return; }
     inName.value = ""; inUrl.value = ""; inFav.checked = true; mins = 5; secs = 0;
     syncSheet();
     addOverlay.classList.add("open");
@@ -639,6 +740,100 @@
   };
   document.getElementById("addCancel").onclick = () => addOverlay.classList.remove("open");
   addOverlay.addEventListener("click", (e) => { if (e.target === addOverlay) addOverlay.classList.remove("open"); });
+
+  // ---------- Playlist builder ----------
+  const plOverlay = document.getElementById("plOverlay");
+  const plName = document.getElementById("plName");
+  const plSelected = document.getElementById("plSelected");
+  const plSource = document.getElementById("plSource");
+  const plSourceNote = document.getElementById("plSourceNote");
+  const plTotal = document.getElementById("plTotal");
+  const plSaveBtn = document.getElementById("plSave");
+  let plDrills = [];        // ordered drill copies being built
+  let editingPlId = null;   // playlist id when editing, null when creating
+
+  function openPlaylistBuilder(p) {
+    editingPlId = p ? p.id : null;
+    plName.value = p ? p.name : "";
+    plDrills = p ? p.drills.map((d) => Object.assign({}, d)) : [];
+    document.getElementById("plTitle").textContent = p ? "EDIT PLAYLIST" : "NEW PLAYLIST";
+    renderPlBuilder();
+    plOverlay.classList.add("open");
+    if (!p) setTimeout(() => plName.focus(), 100);
+  }
+
+  function renderPlBuilder() {
+    // Selected (ordered) drills
+    if (!plDrills.length) {
+      plSelected.innerHTML = '<div class="pl-note">No drills yet — tap drills below to add them. The same drill can be added more than once (for multiple sets).</div>';
+    } else {
+      plSelected.innerHTML = plDrills.map((d, i) =>
+        '<div class="pl-row">' +
+          '<span class="num">' + (i + 1) + '</span>' +
+          '<span class="nm">' + esc(d.name) + '</span>' +
+          '<span class="dur">' + fmt(d.durationSeconds) + '</span>' +
+          '<button data-plact="up" data-i="' + i + '" title="Move up"' + (i === 0 ? ' disabled style="opacity:.3"' : '') + '>↑</button>' +
+          '<button data-plact="rm" data-i="' + i + '" title="Remove">✕</button>' +
+        '</div>'
+      ).join("");
+    }
+    const total = plDrills.reduce((s, d) => s + d.durationSeconds, 0);
+    plTotal.textContent = plDrills.length ? "Total: " + fmt(total) : "";
+
+    // Source drills from the Playbook
+    if (!favorites.length) {
+      plSource.innerHTML = "";
+      plSourceNote.textContent = "Your Playbook is empty — save some drills there first, then come back to build a playlist.";
+    } else {
+      plSourceNote.textContent = "";
+      plSource.innerHTML = favorites.map((f) =>
+        '<div class="pl-row pick" data-plact="pick" data-id="' + f.id + '">' +
+          '<span class="add-ico">＋</span>' +
+          '<span class="nm">' + esc(f.name) + '</span>' +
+          '<span class="dur">' + fmt(f.durationSeconds) + '</span>' +
+        '</div>'
+      ).join("");
+    }
+    plSaveBtn.disabled = !(plName.value.trim() && plDrills.length);
+  }
+
+  plName.addEventListener("input", () => {
+    plSaveBtn.disabled = !(plName.value.trim() && plDrills.length);
+  });
+
+  plOverlay.addEventListener("click", (e) => {
+    if (e.target === plOverlay) { plOverlay.classList.remove("open"); return; }
+    const el = e.target.closest("[data-plact]");
+    if (!el) return;
+    const act = el.dataset.plact;
+    if (act === "pick") {
+      const f = favorites.find((x) => x.id === el.dataset.id);
+      if (f) plDrills.push({ name: f.name, durationSeconds: f.durationSeconds, tutorialURL: f.tutorialURL || "" });
+    } else if (act === "rm") {
+      plDrills.splice(parseInt(el.dataset.i, 10), 1);
+    } else if (act === "up") {
+      const i = parseInt(el.dataset.i, 10);
+      if (i > 0) { const t = plDrills[i - 1]; plDrills[i - 1] = plDrills[i]; plDrills[i] = t; }
+    }
+    renderPlBuilder();
+  });
+
+  document.getElementById("plCancel").onclick = () => plOverlay.classList.remove("open");
+
+  plSaveBtn.onclick = () => {
+    const name = plName.value.trim();
+    if (!name || !plDrills.length) return;
+    if (editingPlId) {
+      const p = playlists.find((x) => x.id === editingPlId);
+      if (p) { p.name = name; p.drills = plDrills; }
+    } else {
+      playlists.push({ id: uid(), name: name, drills: plDrills });
+    }
+    save();
+    plOverlay.classList.remove("open");
+    tab = "playlists"; render();
+    flash("Playlist saved 📋");
+  };
 
   addOk.onclick = () => {
     const w = {
@@ -719,6 +914,11 @@
   ring.setAttribute("stroke-dasharray", C);
 
   let current = null, remaining = 0, running = false, interval = null, endAt = 0, wakeLock = null;
+  let playlist = null, plIndex = 0, advanceTimer = null;   // playlist runner state
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const runnerInfo = document.getElementById("runnerInfo");
+  const backBtn = document.getElementById("timerBack");
 
   async function requestWakeLock() {
     try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
@@ -736,7 +936,25 @@
     clock.classList.toggle("done", done);
     clock.classList.toggle("running", running && !done);
     buzzerLabel.style.display = done ? "block" : "none";
-    timerState.textContent = done ? "Final buzzer" : running ? "Clock running" : "Clock stopped";
+    if (playlist) {
+      const last = plIndex >= playlist.drills.length - 1;
+      runnerInfo.textContent = "Drill " + (plIndex + 1) + " of " + playlist.drills.length + " · " + playlist.name;
+      if (done && last) {
+        timerState.textContent = "Playlist complete 🏆";
+        buzzerLabel.textContent = "FINAL BUZZER!";
+      } else if (done) {
+        timerState.textContent = "Next drill starting…";
+        buzzerLabel.textContent = "BUZZER!";
+      } else {
+        timerState.textContent = running ? "Clock running" : "Clock stopped";
+        buzzerLabel.textContent = "BUZZER!";
+      }
+      prevBtn.disabled = plIndex === 0;
+      nextBtn.disabled = last;
+    } else {
+      timerState.textContent = done ? "Final buzzer" : running ? "Clock running" : "Clock stopped";
+      buzzerLabel.textContent = "BUZZER!";
+    }
     playPause.textContent = running ? "❚❚" : "▶";
     playPause.disabled = done;
   }
@@ -755,13 +973,28 @@
     requestWakeLock();
     interval = setInterval(() => {
       remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
-      if (remaining <= 0) { stopClock(); buzzer(); }
+      if (remaining <= 0) {
+        stopClock();
+        buzzer();
+        // In a playlist, auto-advance to the next drill after the buzzer
+        if (playlist && plIndex < playlist.drills.length - 1) {
+          clearTimeout(advanceTimer);
+          advanceTimer = setTimeout(() => {
+            if (!playlist || !screen.classList.contains("open")) return;
+            plIndex++;
+            loadDrill(playlist.drills[plIndex], true);
+          }, 2400);
+        }
+      }
       drawTimer();
     }, 250);
     drawTimer();
   }
 
-  function openTimer(w) {
+  // Sets up the timer screen for one drill (media, clock, ring size)
+  function loadDrill(w, autoStart) {
+    clearTimeout(advanceTimer);
+    stopClock();
     current = w;
     remaining = w.durationSeconds;
     running = false;
@@ -806,14 +1039,52 @@
     }
 
     drawTimer();
+    if (autoStart) startClock();
+  }
+
+  // Single-drill mode
+  function openTimer(w) {
+    playlist = null;
+    runnerInfo.style.display = "none";
+    prevBtn.style.display = "none";
+    nextBtn.style.display = "none";
+    document.getElementById("ctlSpacer").style.display = "";
+    backBtn.textContent = "‹ Back";
+    loadDrill(w, false);
+    screen.classList.add("open");
+  }
+
+  // Playlist mode: runs each drill's timer in succession
+  function openPlaylist(p) {
+    playlist = p;
+    plIndex = 0;
+    runnerInfo.style.display = "block";
+    prevBtn.style.display = "";
+    nextBtn.style.display = "";
+    document.getElementById("ctlSpacer").style.display = "none";
+    backBtn.textContent = "⌂ Home";
+    loadDrill(p.drills[0], false);
     screen.classList.add("open");
   }
 
   function closeTimer() {
+    clearTimeout(advanceTimer);
     stopClock();
+    playlist = null;
     videoWrap.innerHTML = "";   // removes the iframe, which stops YouTube playback
     screen.classList.remove("open");
   }
+
+  prevBtn.onclick = () => {
+    if (!playlist || plIndex === 0) return;
+    plIndex--;
+    loadDrill(playlist.drills[plIndex], true);
+  };
+  nextBtn.onclick = () => {
+    if (!playlist || plIndex >= playlist.drills.length - 1) return;
+    plIndex++;
+    loadDrill(playlist.drills[plIndex], true);
+  };
 
   playPause.onclick = () => { running ? (stopClock(), drawTimer()) : startClock(); };
   document.getElementById("resetBtn").onclick = () => { stopClock(); remaining = current.durationSeconds; drawTimer(); };
