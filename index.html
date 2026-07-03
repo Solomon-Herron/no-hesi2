@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Hoops Trainer</title>
+
+<!-- Make it feel like a native app when added to the iPhone home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Hoops Trainer" />
+<meta name="theme-color" content="#0D0D11" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230D0D11'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%23FF6B35'/%3E%3Cpath d='M16 50h68 M50 16v68 M26 26c14 13 14 35 0 48 M74 26c-14 13-14 35 0 48' stroke='%231a1a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E" />
+
+<style>
+  :root {
+    --ink: #0D0D11;
+    --panel: #17171D;
+    --panel2: #1F1F27;
+    --line: rgba(255,255,255,0.10);
+    --orange: #FF6B35;
+    --orange-dim: rgba(255,107,53,0.16);
+    --wood: #C28F59;
+    --text: #F4F2EE;
+    --dim: #9A98A0;
+    --green: #3ED66E;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--ink); }
+  body {
+    color: var(--text);
+    font-family: 'Avenir Next', 'Helvetica Neue', system-ui, sans-serif;
+    max-width: 480px; margin: 0 auto;
+    min-height: 100vh; min-height: 100dvh;
+    padding-bottom: 110px;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  a { -webkit-touch-callout: default; }
+
+  /* Header */
+  header { padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 10px; display: flex; align-items: center; gap: 12px; }
+  .title { font-size: 20px; font-weight: 800; letter-spacing: .5px; }
+  .subtitle { font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; }
+
+  .divider { display: flex; align-items: center; gap: 10px; margin: 4px 18px; }
+  .divider .l { flex: 1; height: 1px; background: var(--line); }
+  .divider .c { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); position: relative; }
+  .divider .c::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line); }
+
+  main { padding: 10px 18px 0; }
+
+  /* Cards */
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .card .info { flex: 1; min-width: 0; }
+  .card .name { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .meta { font-size: 12px; color: var(--dim); margin-top: 3px; display: flex; gap: 10px; }
+  .card .meta .tut { color: var(--wood); }
+
+  .btn {
+    border: none; border-radius: 10px; padding: 9px 14px;
+    font-weight: 800; font-size: 13px; letter-spacing: .5px;
+    background: var(--panel2); color: var(--text);
+  }
+  .btn.primary { background: var(--orange); color: #111; }
+  .btn.green { background: var(--green); color: #111; }
+  .btn.dim { color: var(--dim); }
+
+  .playlink {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--orange-dim); color: var(--orange);
+    border: 1px solid rgba(255,107,53,.35); text-decoration: none;
+  }
+
+  /* Empty state */
+  .empty { text-align: center; padding-top: 70px; }
+  .empty .ball { font-size: 52px; }
+  .empty .t { font-weight: 800; font-size: 18px; margin-top: 10px; }
+  .empty .m { color: var(--dim); font-size: 14px; margin: 6px 30px 0; line-height: 1.5; }
+
+  /* Bottom nav */
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto;
+    background: rgba(13,13,17,.96); border-top: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 30;
+  }
+  .tab {
+    flex: 1; background: transparent; border: none; color: var(--dim);
+    font-weight: 700; font-size: 12px; letter-spacing: 1px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px;
+  }
+  .tab.active { color: var(--orange); }
+  .tab .icon { font-size: 18px; }
+  .fab {
+    width: 56px; height: 56px; border-radius: 50%; border: none; flex-shrink: 0;
+    background: var(--orange); color: #111; font-size: 30px; font-weight: 700; line-height: 0;
+    box-shadow: 0 4px 16px rgba(255,107,53,.45);
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--line);
+    padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,.5); z-index: 40; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  #toast.show { opacity: 1; }
+
+  /* Overlay sheets */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .sheet {
+    width: 100%; max-width: 480px; background: var(--ink);
+    border: 1px solid var(--line); border-bottom: none; border-radius: 22px 22px 0 0;
+    padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet h2 { font-size: 18px; font-weight: 800; letter-spacing: .5px; margin: 0 0 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 11px; color: var(--dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .field input[type=text], .field input[type=url] {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; font-size: 16px; outline: none;
+  }
+  .steppers { display: flex; gap: 10px; }
+  .stepper {
+    flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+    display: flex; align-items: center; justify-content: space-between; padding: 6px 8px;
+  }
+  .stepper button {
+    width: 38px; height: 38px; border-radius: 10px; border: none;
+    background: rgba(255,255,255,.06); color: var(--text); font-size: 20px; font-weight: 700;
+  }
+  .stepper .val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
+  .stepper .lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-align: center; }
+  .checkrow { display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 14px 0 20px; }
+  .checkrow input { width: 18px; height: 18px; accent-color: var(--orange); }
+  .sheet .actions { display: flex; gap: 10px; }
+  .sheet .actions .btn { padding: 14px; }
+  .sheet .actions .cancel { flex: 1; }
+  .sheet .actions .ok { flex: 2; }
+  .btn:disabled { opacity: .4; }
+
+  /* Timer screen */
+  #timerScreen {
+    position: fixed; inset: 0; background: var(--ink); z-index: 60;
+    display: none; flex-direction: column; align-items: center;
+    max-width: 480px; margin: 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 30px);
+  }
+  #timerScreen.open { display: flex; }
+  .timer-top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+  .timer-name { margin-top: 24px; font-size: 22px; font-weight: 800; text-align: center; padding: 0 10px; }
+  .timer-state { font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
+  .ring-wrap { position: relative; margin-top: 28px; }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+  }
+  #clock {
+    font-size: 58px; font-weight: 900; font-variant-numeric: tabular-nums;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  #clock.running { text-shadow: 0 0 24px rgba(255,107,53,.5); }
+  #clock.done { color: var(--green); text-shadow: 0 0 24px var(--green); }
+  #buzzerLabel { color: var(--green); font-weight: 800; letter-spacing: 3px; font-size: 13px; display: none; }
+  .controls { display: flex; gap: 16px; margin-top: 34px; align-items: center; }
+  .ctl {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 22px;
+  }
+  .ctl.spacer { visibility: hidden; }
+  #playPause {
+    width: 92px; height: 92px; border-radius: 50%; border: none;
+    background: var(--orange); color: #111; font-size: 30px; font-weight: 900;
+    box-shadow: 0 6px 24px rgba(255,107,53,.45);
+  }
+  #playPause:disabled { background: var(--panel2); box-shadow: none; }
+  .timer-hint { margin-top: 22px; font-size: 12px; color: var(--dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="34" height="34" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="18" fill="#FF6B35"/>
+    <path d="M2 20h36 M20 2v36 M6 7c8 7 8 19 0 26 M34 7c-8 7-8 19 0 26" stroke="#1a1a1a" stroke-width="1.6" fill="none"/>
+  </svg>
+  <div>
+    <div class="title">HOOPS TRAINER</div>
+    <div class="subtitle" id="subtitle">Today's session</div>
+  </div>
+</header>
+
+<div class="divider"><div class="l"></div><div class="c"></div><div class="l"></div></div>
+
+<main id="main"></main>
+
+<div id="toast"></div>
+
+<nav>
+  <button class="tab active" id="tabSession"><span class="icon">⏱</span>SESSION</button>
+  <button class="fab" id="fab" aria-label="Add drill">+</button>
+  <button class="tab" id="tabPlaybook"><span class="icon">⭐</span>PLAYBOOK</button>
+</nav>
+
+<!-- Add drill sheet -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet">
+    <h2>NEW DRILL</h2>
+    <div class="field">
+      <label>Drill name</label>
+      <input type="text" id="inName" placeholder="e.g. Mikan Drill" />
+    </div>
+    <div class="field">
+      <label>Timer</label>
+      <div class="steppers">
+        <div class="stepper">
+          <button id="minDown">−</button>
+          <div><div class="val" id="minVal">5</div><div class="lbl">MIN</div></div>
+          <button id="minUp">+</button>
+        </div>
+        <div class="stepper">
+          <button id="secDown">−</button>
+          <div><div class="val" id="secVal">0</div><div class="lbl">SEC</div></div>
+          <button id="secUp">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Tutorial link (optional)</label>
+      <input type="url" id="inUrl" placeholder="youtube.com/watch?v=…" autocapitalize="none" autocomplete="off" />
+    </div>
+    <label class="checkrow">
+      <input type="checkbox" id="inFav" checked /> Save to Playbook ⭐
+    </label>
+    <div class="actions">
+      <button class="btn cancel" id="addCancel">Cancel</button>
+      <button class="btn primary ok" id="addOk">Add drill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Timer screen -->
+<div id="timerScreen">
+  <div class="timer-top">
+    <button class="btn" id="timerBack">‹ Back</button>
+    <a class="playlink" id="timerTut" target="_blank" rel="noopener noreferrer" style="display:none" title="Open tutorial">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </a>
+  </div>
+  <div class="timer-name" id="timerName"></div>
+  <div class="timer-state" id="timerState">Clock stopped</div>
+  <div class="ring-wrap">
+    <svg width="280" height="280" viewBox="0 0 280 280">
+      <circle cx="140" cy="140" r="120" stroke="rgba(255,255,255,0.10)" stroke-width="14" fill="none"/>
+      <circle id="ring" cx="140" cy="140" r="120" fill="none" stroke="#FF6B35" stroke-width="14"
+        stroke-linecap="round" transform="rotate(-90 140 140)"
+        style="transition: stroke-dashoffset .3s linear"/>
+    </svg>
+    <div class="ring-center">
+      <div style="font-size:30px">🏀</div>
+      <div id="clock">0:00</div>
+      <div id="buzzerLabel">BUZZER!</div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="ctl" id="resetBtn">↺</button>
+    <button id="playPause">▶</button>
+    <button class="ctl spacer">↺</button>
+  </div>
+  <div class="timer-hint" id="timerHint" style="display:none">Tap the ▶ button top-right to open the tutorial</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- State & persistence ----------
+  const KEY = "hoops-trainer-data";
+  let session = [], favorites = [], tab = "session";
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        session = d.session || [];
+        favorites = d.favorites || [];
+      }
+    } catch (e) {}
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ session, favorites })); } catch (e) {}
+  }
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const fmt = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const normalizeUrl = (u) => {
+    const t = (u || "").trim();
+    if (!t) return "";
+    return /^https?:\/\//i.test(t) ? t : "https://" + t;
+  };
+  const safeHref = (u) => {
+    try {
+      const url = new URL(u);
+      return (url.protocol === "https:" || url.protocol === "http:") ? url.href : "";
+    } catch (e) { return ""; }
+  };
+
+  // ---------- Toast ----------
+  const toastEl = document.getElementById("toast");
+  let toastTimer = null;
+  function flash(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+  }
+
+  // ---------- Rendering ----------
+  const main = document.getElementById("main");
+  const subtitle = document.getElementById("subtitle");
+
+  function playLinkHTML(url) {
+    const href = safeHref(url);
+    if (!href) return "";
+    return '<a class="playlink" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="Open tutorial">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></a>';
+  }
+
+  function emptyHTML(title, msg) {
+    return '<div class="empty"><div class="ball">🏀</div><div class="t">' + title + '</div><div class="m">' + msg + '</div></div>';
+  }
+
+  function render() {
+    document.getElementById("tabSession").classList.toggle("active", tab === "session");
+    document.getElementById("tabPlaybook").classList.toggle("active", tab === "playbook");
+    subtitle.textContent = tab === "session" ? "Today's session" : "Saved playbook";
+
+    if (tab === "session") {
+      if (!session.length) {
+        main.innerHTML = emptyHTML("No drills on the court", "Tap the orange + to add a drill, or pull one from your Playbook.");
+        return;
+      }
+      main.innerHTML = session.map((w) =>
+        '<div class="card">' +
+          '<div class="info"><div class="name">' + esc(w.name) + '</div>' +
+          '<div class="meta"><span>⏱ ' + fmt(w.durationSeconds) + '</span>' +
+          (w.tutorialURL ? '<span class="tut">▶ tutorial linked</span>' : '') + '</div></div>' +
+          playLinkHTML(w.tutorialURL) +
+          '<button class="btn primary" data-act="start" data-id="' + w.id + '">Start</button>' +
+          '<button class="btn" data-act="star" data-id="' + w.id + '" title="Save to Playbook">⭐</button>' +
+          '<button class="btn dim" data-act="del" data-id="' + w.id + '" title="Remove">✕</button>' +
+        '</div>'
+      ).join("");
+    } else {
+      if (!favorites.length) {
+        main.innerHTML = emptyHTML("Playbook is empty", "Save a drill with the ⭐ button, or check “Save to Playbook” when creating one.");
+        return;
+      }
+      main.innerHTML = favorites.map((f) =>
+        '<div class="card">' +
+          '<div class="info"><div class="name">' + esc(f.name) + '</div>' +
+          '<div class="meta"><span>⏱ ' + fmt(f.durationSeconds) + '</span>' +
+          (f.tutorialURL ? '<span class="tut">▶ tutorial linked</span>' : '') + '</div></div>' +
+          playLinkHTML(f.tutorialURL) +
+          '<button class="btn green" data-act="addfav" data-id="' + f.id + '">+ Add</button>' +
+          '<button class="btn dim" data-act="delfav" data-id="' + f.id + '" title="Remove">✕</button>' +
+        '</div>'
+      ).join("");
+    }
+  }
+
+  main.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const id = btn.dataset.id, act = btn.dataset.act;
+    if (act === "start") {
+      const w = session.find((x) => x.id === id);
+      if (w) openTimer(w);
+    } else if (act === "del") {
+      session = session.filter((x) => x.id !== id); save(); render();
+    } else if (act === "star") {
+      const w = session.find((x) => x.id === id);
+      if (!w) return;
+      if (favorites.some((f) => f.name === w.name && f.durationSeconds === w.durationSeconds)) {
+        flash("Already in your Playbook");
+      } else {
+        favorites.push(Object.assign({}, w, { id: uid() })); save(); flash("Saved to Playbook ⭐");
+      }
+    } else if (act === "addfav") {
+      const f = favorites.find((x) => x.id === id);
+      if (!f) return;
+      session.push(Object.assign({}, f, { id: uid() })); save();
+      flash("Added to today's session");
+      tab = "session"; render();
+    } else if (act === "delfav") {
+      favorites = favorites.filter((x) => x.id !== id); save(); render();
+    }
+  });
+
+  document.getElementById("tabSession").onclick = () => { tab = "session"; render(); };
+  document.getElementById("tabPlaybook").onclick = () => { tab = "playbook"; render(); };
+
+  // ---------- Add drill sheet ----------
+  const addOverlay = document.getElementById("addOverlay");
+  const inName = document.getElementById("inName");
+  const inUrl = document.getElementById("inUrl");
+  const inFav = document.getElementById("inFav");
+  const minVal = document.getElementById("minVal");
+  const secVal = document.getElementById("secVal");
+  const addOk = document.getElementById("addOk");
+  let mins = 5, secs = 0;
+
+  function syncSheet() {
+    minVal.textContent = mins;
+    secVal.textContent = secs;
+    addOk.disabled = !(inName.value.trim() && (mins * 60 + secs) > 0);
+  }
+  document.getElementById("minUp").onclick = () => { mins = Math.min(60, mins + 1); syncSheet(); };
+  document.getElementById("minDown").onclick = () => { mins = Math.max(0, mins - 1); syncSheet(); };
+  document.getElementById("secUp").onclick = () => { secs = Math.min(59, secs + 5); syncSheet(); };
+  document.getElementById("secDown").onclick = () => { secs = Math.max(0, secs - 5); syncSheet(); };
+  inName.addEventListener("input", syncSheet);
+
+  document.getElementById("fab").onclick = () => {
+    inName.value = ""; inUrl.value = ""; inFav.checked = true; mins = 5; secs = 0;
+    syncSheet();
+    addOverlay.classList.add("open");
+    setTimeout(() => inName.focus(), 100);
+  };
+  document.getElementById("addCancel").onclick = () => addOverlay.classList.remove("open");
+  addOverlay.addEventListener("click", (e) => { if (e.target === addOverlay) addOverlay.classList.remove("open"); });
+
+  addOk.onclick = () => {
+    const w = {
+      id: uid(),
+      name: inName.value.trim(),
+      durationSeconds: mins * 60 + secs,
+      tutorialURL: normalizeUrl(inUrl.value),
+    };
+    session.push(w);
+    if (inFav.checked && !favorites.some((f) => f.name === w.name && f.durationSeconds === w.durationSeconds)) {
+      favorites.push(Object.assign({}, w, { id: uid() }));
+    }
+    save();
+    addOverlay.classList.remove("open");
+    tab = "session"; render();
+  };
+
+  // ---------- Timer ----------
+  const screen = document.getElementById("timerScreen");
+  const ring = document.getElementById("ring");
+  const clock = document.getElementById("clock");
+  const playPause = document.getElementById("playPause");
+  const buzzerLabel = document.getElementById("buzzerLabel");
+  const timerState = document.getElementById("timerState");
+  const C = 2 * Math.PI * 120;
+  ring.setAttribute("stroke-dasharray", C);
+
+  let current = null, remaining = 0, running = false, interval = null, endAt = 0, wakeLock = null;
+
+  async function requestWakeLock() {
+    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+  function releaseWakeLock() {
+    try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {}
+  }
+
+  function buzzer() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = "square"; osc.frequency.value = 220;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 1.1);
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+  }
+
+  function drawTimer() {
+    clock.textContent = fmt(remaining);
+    const done = remaining === 0;
+    const progress = current.durationSeconds > 0 ? 1 - remaining / current.durationSeconds : 0;
+    ring.setAttribute("stroke-dashoffset", C * (1 - progress));
+    ring.setAttribute("stroke", done ? "#3ED66E" : "#FF6B35");
+    clock.classList.toggle("done", done);
+    clock.classList.toggle("running", running && !done);
+    buzzerLabel.style.display = done ? "block" : "none";
+    timerState.textContent = done ? "Final buzzer" : running ? "Clock running" : "Clock stopped";
+    playPause.textContent = running ? "❚❚" : "▶";
+    playPause.disabled = done;
+  }
+
+  function stopClock() {
+    running = false;
+    if (interval) { clearInterval(interval); interval = null; }
+    releaseWakeLock();
+  }
+
+  function startClock() {
+    if (remaining <= 0) return;
+    running = true;
+    endAt = Date.now() + remaining * 1000;
+    requestWakeLock();
+    interval = setInterval(() => {
+      remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+      if (remaining <= 0) { stopClock(); buzzer(); }
+      drawTimer();
+    }, 250);
+    drawTimer();
+  }
+
+  function openTimer(w) {
+    current = w;
+    remaining = w.durationSeconds;
+    running = false;
+    document.getElementById("timerName").textContent = w.name;
+    const tut = document.getElementById("timerTut");
+    const hint = document.getElementById("timerHint");
+    const href = safeHref(w.tutorialURL);
+    if (href) { tut.href = href; tut.style.display = "flex"; hint.style.display = "block"; }
+    else { tut.style.display = "none"; hint.style.display = "none"; }
+    drawTimer();
+    screen.classList.add("open");
+  }
+
+  playPause.onclick = () => { running ? (stopClock(), drawTimer()) : startClock(); };
+  document.getElementById("resetBtn").onclick = () => { stopClock(); remaining = current.durationSeconds; drawTimer(); };
+  document.getElementById("timerBack").onclick = () => { stopClock(); screen.classList.remove("open"); };
+
+  // Re-acquire wake lock if user switches back mid-drill
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && running) {
+      requestWakeLock();
+      remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+      if (remaining <= 0) { stopClock(); buzzer(); }
+      drawTimer();
+    }
+  });
+
+  // ---------- Init ----------
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
