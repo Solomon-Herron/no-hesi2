@@ -121,11 +121,37 @@
   }
   .tab {
     flex: 1; background: transparent; border: none; color: var(--dim);
-    font-weight: 700; font-size: 12px; letter-spacing: 1px;
-    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px;
+    font-weight: 700; font-size: 10.5px; letter-spacing: .6px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; min-width: 0;
   }
   .tab.active { color: var(--orange); }
-  .tab .icon { font-size: 18px; }
+  .tab .icon { font-size: 17px; }
+
+  /* Notes */
+  .note-snippet {
+    font-size: 12px; color: var(--dim); margin-top: 4px; line-height: 1.45;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    white-space: normal;
+  }
+  .field textarea {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
+    font-size: 16px; outline: none; font-family: inherit; line-height: 1.55;
+    min-height: 180px; resize: vertical;
+  }
+
+  /* Note editor fills nearly the whole screen */
+  #noteOverlay .sheet {
+    height: calc(100dvh - 20px); max-height: none;
+    display: flex; flex-direction: column;
+  }
+  #noteOverlay .field.grow {
+    flex: 1; display: flex; flex-direction: column; min-height: 0;
+  }
+  #noteOverlay .field.grow textarea {
+    flex: 1; min-height: 0; resize: none;
+  }
+  #noteOverlay .actions { flex-shrink: 0; margin-top: 10px; }
   .fab {
     width: 56px; height: 56px; border-radius: 50%; border: none; flex-shrink: 0;
     background: var(--orange); color: #111; font-size: 30px; font-weight: 700; line-height: 0;
@@ -291,6 +317,7 @@
   <button class="tab" id="tabPlaylists"><span class="icon">📋</span>PLAYLISTS</button>
   <button class="fab" id="fab" aria-label="Add">+</button>
   <button class="tab" id="tabPlaybook"><span class="icon">⭐</span>PLAYBOOK</button>
+  <button class="tab" id="tabNotes"><span class="icon">📝</span>NOTES</button>
 </nav>
 
 <!-- Add drill sheet -->
@@ -356,6 +383,25 @@
   </div>
 </div>
 
+<!-- Note editor sheet -->
+<div class="overlay" id="noteOverlay">
+  <div class="sheet">
+    <h2 id="noteTitleHdr">NEW NOTE</h2>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="noteTitle" placeholder="e.g. Free throw form cues" />
+    </div>
+    <div class="field grow">
+      <label>Note</label>
+      <textarea id="noteBody" placeholder="Elbow in, eyes on the rim, follow through…"></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn cancel" id="noteCancel">Cancel</button>
+      <button class="btn primary ok" id="noteSave">Save note</button>
+    </div>
+  </div>
+</div>
+
 <!-- Timer screen -->
 <div id="timerScreen">
   <div class="timer-top">
@@ -407,7 +453,7 @@
 
   // ---------- State & persistence ----------
   const KEY = "hoops-trainer-data";
-  let session = [], favorites = [], playlists = [], tab = "session";
+  let session = [], favorites = [], playlists = [], notes = [], tab = "session";
 
   function load() {
     try {
@@ -417,11 +463,12 @@
         session = d.session || [];
         favorites = d.favorites || [];
         playlists = d.playlists || [];
+        notes = d.notes || [];
       }
     } catch (e) {}
   }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ session, favorites, playlists })); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify({ session, favorites, playlists, notes })); } catch (e) {}
   }
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -530,7 +577,30 @@
     document.getElementById("tabSession").classList.toggle("active", tab === "session");
     document.getElementById("tabPlaylists").classList.toggle("active", tab === "playlists");
     document.getElementById("tabPlaybook").classList.toggle("active", tab === "playbook");
-    subtitle.textContent = tab === "session" ? "Today's session" : tab === "playlists" ? "Drill playlists" : "Saved playbook";
+    document.getElementById("tabNotes").classList.toggle("active", tab === "notes");
+    subtitle.textContent =
+      tab === "session" ? "Today's session" :
+      tab === "playlists" ? "Drill playlists" :
+      tab === "notes" ? "Training notes" : "Saved playbook";
+
+    if (tab === "notes") {
+      if (!notes.length) {
+        main.innerHTML = emptyHTML("No notes yet", "Tap the orange + to jot down coaching cues, goals, or anything worth remembering.");
+        return;
+      }
+      main.innerHTML = notes.map((n) => {
+        const date = n.updatedAt ? new Date(n.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+        return '<div class="card">' +
+          '<div class="info"><div class="name">📝 ' + esc(n.title) + '</div>' +
+          '<div class="meta"><span>' + date + '</span></div>' +
+          (n.body ? '<div class="note-snippet">' + esc(n.body) + '</div>' : '') +
+          '</div>' +
+          '<button class="btn" data-act="editnote" data-id="' + n.id + '" title="Open">✎</button>' +
+          '<button class="btn dim" data-act="delnote" data-id="' + n.id + '" title="Delete">✕</button>' +
+        '</div>';
+      }).join("");
+      return;
+    }
 
     if (tab === "playlists") {
       if (!playlists.length) {
@@ -639,16 +709,22 @@
       if (p) openPlaylistBuilder(p);
     } else if (act === "delpl") {
       playlists = playlists.filter((x) => x.id !== id); save(); render();
+    } else if (act === "editnote") {
+      const n = notes.find((x) => x.id === id);
+      if (n) openNoteEditor(n);
+    } else if (act === "delnote") {
+      notes = notes.filter((x) => x.id !== id); save(); render();
     }
   });
 
   document.getElementById("tabPlaylists").onclick = () => { tab = "playlists"; render(); };
+  document.getElementById("tabNotes").onclick = () => { tab = "notes"; render(); };
 
   // ---------- Backup: export / import ----------
   function exportBackup() {
     try {
       const stamp = new Date().toISOString().slice(0, 10);
-      const payload = JSON.stringify({ app: "hoops-trainer", exportedAt: new Date().toISOString(), session, favorites, playlists }, null, 2);
+      const payload = JSON.stringify({ app: "hoops-trainer", exportedAt: new Date().toISOString(), session, favorites, playlists, notes }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -695,10 +771,19 @@
             plAdded++;
           }
         });
+        let ntAdded = 0;
+        (d.notes || []).forEach(function (n) {
+          if (n && n.title &&
+              !notes.some((x) => x.title === n.title && x.body === (n.body || ""))) {
+            notes.push({ id: uid(), title: String(n.title), body: String(n.body || ""), updatedAt: n.updatedAt || new Date().toISOString() });
+            ntAdded++;
+          }
+        });
         save(); render();
         const parts = [];
         if (added) parts.push(added + " drill" + (added === 1 ? "" : "s"));
         if (plAdded) parts.push(plAdded + " playlist" + (plAdded === 1 ? "" : "s"));
+        if (ntAdded) parts.push(ntAdded + " note" + (ntAdded === 1 ? "" : "s"));
         flash(parts.length ? "Restored " + parts.join(" + ") + " ⭐" : "Nothing new to restore");
       } catch (e) {
         flash("Couldn't read that backup file");
@@ -733,6 +818,7 @@
 
   document.getElementById("fab").onclick = () => {
     if (tab === "playlists") { openPlaylistBuilder(null); return; }
+    if (tab === "notes") { openNoteEditor(null); return; }
     inName.value = ""; inUrl.value = ""; inFav.checked = true; mins = 5; secs = 0;
     syncSheet();
     addOverlay.classList.add("open");
@@ -740,6 +826,46 @@
   };
   document.getElementById("addCancel").onclick = () => addOverlay.classList.remove("open");
   addOverlay.addEventListener("click", (e) => { if (e.target === addOverlay) addOverlay.classList.remove("open"); });
+
+  // ---------- Note editor ----------
+  const noteOverlay = document.getElementById("noteOverlay");
+  const noteTitle = document.getElementById("noteTitle");
+  const noteBody = document.getElementById("noteBody");
+  const noteSaveBtn = document.getElementById("noteSave");
+  let editingNoteId = null;
+
+  function openNoteEditor(n) {
+    editingNoteId = n ? n.id : null;
+    noteTitle.value = n ? n.title : "";
+    noteBody.value = n ? n.body : "";
+    document.getElementById("noteTitleHdr").textContent = n ? "EDIT NOTE" : "NEW NOTE";
+    noteSaveBtn.disabled = !noteTitle.value.trim();
+    noteOverlay.classList.add("open");
+    if (!n) setTimeout(() => noteTitle.focus(), 100);
+  }
+
+  noteTitle.addEventListener("input", () => {
+    noteSaveBtn.disabled = !noteTitle.value.trim();
+  });
+
+  document.getElementById("noteCancel").onclick = () => noteOverlay.classList.remove("open");
+  noteOverlay.addEventListener("click", (e) => { if (e.target === noteOverlay) noteOverlay.classList.remove("open"); });
+
+  noteSaveBtn.onclick = () => {
+    const title = noteTitle.value.trim();
+    if (!title) return;
+    const body = noteBody.value;
+    if (editingNoteId) {
+      const n = notes.find((x) => x.id === editingNoteId);
+      if (n) { n.title = title; n.body = body; n.updatedAt = new Date().toISOString(); }
+    } else {
+      notes.unshift({ id: uid(), title: title, body: body, updatedAt: new Date().toISOString() });
+    }
+    save();
+    noteOverlay.classList.remove("open");
+    tab = "notes"; render();
+    flash("Note saved 📝");
+  };
 
   // ---------- Playlist builder ----------
   const plOverlay = document.getElementById("plOverlay");
